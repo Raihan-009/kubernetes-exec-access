@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Exec</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.js"></script>
+</head>
+<body>
+    <h1>WebSocket Exec</h1>
+    <div id="output"></div>
+    <input type="text" id="commandInput" placeholder="Enter command">
+    <button onclick="sendCommand()">Send Command</button>
+
+    <script>
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        socket.on('output', function(msg) {
+            document.getElementById('output').innerHTML += '<p>' + msg.output + '</p>';
+        });
+
+        function sendCommand() {
+            var command = document.getElementById('commandInput').value;
+            socket.emit('command', {'command': command});
+        }
+    </script>
+</body>
+</html>
