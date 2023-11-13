@@ -1,62 +1,43 @@
+import os
+import pty
+import subprocess
 from flask import Flask, render_template
 from flask_socketio import SocketIO
-from kubernetes import client, config
-from kubernetes.client.rest import ApiException
-from kubernetes.stream import stream
-import threading
 
 app = Flask(__name__)
 socketio = SocketIO(app)
-namespace = 'mynamespace'
-pod_name = "hello-world-pod"
-container_name = "hello-world-container"
+pid, fd = pty.fork()
 
-def exec_command(command):
-    config.load_kube_config()
-    api = client.CoreV1Api()
+if pid == 0:  # Child process
+    os.execlp('bash', 'bash')
 
-    try:
-        exec_command = [
-            "/bin/sh",
-            "-c",
-            command
-        ]
-
-        resp = api.read_namespaced_pod(name=pod_name, namespace=namespace)
-
-        if resp.status.phase == 'Running':
-            exec_response = stream(api.connect_get_namespaced_pod_exec,
-                                   name=pod_name,
-                                   namespace=namespace,
-                                   command=exec_command,
-                                   container=container_name,
-                                   stdin=False,
-                                   stdout=True,
-                                   stderr=True,
-                                   tty=False,
-                                   _preload_content=False)
-
-            # Use the WebSocket connection to emit output
-            while exec_response.is_open():
-                output = exec_response.read_stdout()
-                if output:
-                    socketio.emit('output', {'output': output})
-            exec_response.close()
-
-        else:
-            socketio.emit('output', {'output': f"Pod {pod_name} is not in the 'Running' phase."})
-
-    except ApiException as e:
-        socketio.emit('output', {'output': f"Error executing command: {e}"})
+process = subprocess.Popen(
+    ['bash'],
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    bufsize=0,
+    preexec_fn=os.setsid,
+)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index_terminal.html')
 
-@socketio.on('command')
-def handle_command(data):
-    command = data['command']
-    socketio.start_background_task(exec_command, command)
+@socketio.on('connect_terminal')
+def handle_connect_terminal(data):
+    socketio.emit('output_terminal', {'output': 'Connected to terminal.'})
+
+@socketio.on('input_terminal')
+def handle_input_terminal(data):
+    input_data = data['input']
+    os.write(fd, input_data.encode())
+
+def read_output():
+    while True:
+        output = os.read(fd, 1024)
+        socketio.emit('output_terminal', {'output': output.decode()})
 
 if __name__ == '__main__':
+    socketio.start_background_task(target=read_output)
     socketio.run(app, debug=True)

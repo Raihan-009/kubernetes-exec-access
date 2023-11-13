@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Terminal</title>
+    <link rel="stylesheet" href="https://unpkg.com/xterm/css/xterm.css" />
+    <script src="https://unpkg.com/xterm/lib/xterm.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.js"></script>
+</head>
+<body>
+    <div id="terminal"></div>
+
+    <script>
+        var term = new Terminal();
+        term.open(document.getElementById('terminal'));
+        var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        socket.on('connect', function() {
+            socket.emit('connect_terminal', {});
+        });
+
+        socket.on('output_terminal', function(msg) {
+            term.write(msg.output);
+        });
+
+        term.onData(data => {
+            socket.emit('input_terminal', {'input': data});
+        });
+
+        term.onResize(size => {
+            socket.emit('resize_terminal', {'cols': size.cols, 'rows': size.rows});
+        });
+
+        // Ensure the terminal has focus
+        term.focus();
+    </script>
+</body>
+</html>
