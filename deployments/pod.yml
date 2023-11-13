@@ -1,0 +1,11 @@
+# create a file named hello-world-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hello-world-pod
+  namespace: mynamespace
+spec:
+  containers:
+  - name: hello-world-container
+    image: busybox
+    command: ['sh', '-c', 'echo "Hello, World!" && sleep 3600']

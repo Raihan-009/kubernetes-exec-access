@@ -1,0 +1,5 @@
+# create a file named hello-world-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mynamespace
